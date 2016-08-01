@@ -1,0 +1,56 @@
+#!/usr/bin/bash
+
+function java_data_strip {
+	# Remove JAVA data string format typically: <![CDATA[###]]>
+	# $1 - String to be striped
+	echo $1 | sed "s/<\!\[CDATA\[//g" | sed "s/\]\]>//g"
+}	
+
+function xml_filter {
+	# Search for a tag on the file and return just its content
+	# $1 - The xml file to filter from
+	# $2 - The xml tag name to filter (wihout < , > and /)
+
+	cat $1 | grep "<$2>" | sed "s/<$2>//g" | sed "s/<\/$2>//g"
+}
+
+function get_value {
+	# Get a value from description file
+	# $1 - The xml file with info
+	# The xml tag name to search (without <, > and /)
+
+	java_value="`xml_filter $1 $2`";
+	value="`java_data_strip "$java_value"`"
+	echo $value
+}
+
+if [ $# -eq 0 ]; then
+	echo "The first argument must be the paper number"
+	exit
+else
+	echo -e "\n:: Downloading Paper Info Please wait ::"
+	# Use the ieeexplore gateway API to get paper info
+	# See API on: http://ieeexplore.ieee.org/gateway/
+	wget -q "http://ieeexplore.ieee.org/gateway/ipsSearch.jsp?an=$1" -O /tmp/description.xml
+
+	# Get some data from description file
+	title="`get_value /tmp/description.xml 'title'`"
+	year="`get_value /tmp/description.xml 'py'`"
+	authors="`get_value /tmp/description.xml 'authors'`"
+	echo -e "\n:: The folowing paper will be downloaded ::"
+	echo -e "\t TITLE: $title"
+	echo -e "\t AUTHORS: $authors"
+	echo -e "\t YEAR: $year\n"
+
+	T="`echo $title | tr ' ' '-'`"; # Change spaces to -
+	A="`echo $authors | cut -d';' -f1 | tr ' ' '-'`" # Get just the first author
+	fileName="`echo $A\_$year\_$T`.pdf" 
+
+	# Download paper using the folowing tweak:
+	# http://techqe.blogspot.com.br/2009/09/quick-download-ieee-paper.html
+	wget -q --show-progress "http://ieeexplore.ieee.org/stampPDF/getPDF.jsp?tp=&isnumber=&arnumber=$1" -O ./$fileName
+
+	echo -e "\n:: The folowing paper have been downloaded ::"
+	echo -e "\t $fileName\n"
+fi
+
