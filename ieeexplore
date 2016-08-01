@@ -1,4 +1,4 @@
-#!/usr/bin/bash
+#!/bin/bash
 
 function java_data_strip {
 	# Remove JAVA data string format typically: <![CDATA[###]]>
@@ -48,7 +48,7 @@ else
 
 	# Download paper using the folowing tweak:
 	# http://techqe.blogspot.com.br/2009/09/quick-download-ieee-paper.html
-	wget -q --show-progress "http://ieeexplore.ieee.org/stampPDF/getPDF.jsp?tp=&isnumber=&arnumber=$1" -O ./$fileName
+	wget --progress=bar "http://ieeexplore.ieee.org/stampPDF/getPDF.jsp?tp=&isnumber=&arnumber=$1" -O ./$fileName
 
 	echo -e "\n:: The folowing paper have been downloaded ::"
 	echo -e "\t $fileName\n"
