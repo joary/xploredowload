@@ -1,27 +1,33 @@
 #!/bin/bash
 
-function java_data_strip {
-	# Remove JAVA data string format typically: <![CDATA[###]]>
-	# $1 - String to be striped
-	echo $1 | sed "s/<\!\[CDATA\[//g" | sed "s/\]\]>//g"
-}	
-
-function xml_filter {
-	# Search for a tag on the file and return just its content
-	# $1 - The xml file to filter from
-	# $2 - The xml tag name to filter (wihout < , > and /)
-
-	cat $1 | grep "<$2>" | sed "s/<$2>//g" | sed "s/<\/$2>//g"
+function download_paper {
+	# Download paper using the folowing tweak:
+	# http://techqe.blogspot.com.br/2009/09/quick-download-ieee-paper.html
+	# 	$1 - The paper ID
+	#   Return the pdf metadata
+	wget --progress=bar "http://ieeexplore.ieee.org/stampPDF/getPDF.jsp?tp=&isnumber=&arnumber=$1" -O $2/$1.pdf
 }
 
-function get_value {
-	# Get a value from description file
-	# $1 - The xml file with info
-	# The xml tag name to search (without <, > and /)
+function get_paper_title {
+	T=$(pdfinfo /tmp/$1.pdf | grep Title: | sed s/Title://)
+	echo $T
+}
 
-	java_value="`xml_filter $1 $2`";
-	value="`java_data_strip "$java_value"`"
-	echo $value
+function get_paper_author {
+	T=$(pdfinfo /tmp/$1.pdf | grep Author: | sed s/Author:// | cut -d',' -f1)
+	echo $T
+}
+
+function get_paper_year {
+	T=$(pdfinfo /tmp/$1.pdf | grep CreationDate | sed s/CreationDate:// | sed 's/ */ /')
+	echo $T | cut -d" " -f5
+}
+
+function show_result {
+	echo -e "\n:: The folowing paper was downloaded ::"
+	echo -e "\t TITLE: $1"
+	echo -e "\t AUTHOR: $2"
+	echo -e "\t YEAR: $3\n"
 }
 
 if [ $# -eq 0 ]; then
@@ -29,28 +35,20 @@ if [ $# -eq 0 ]; then
 	exit
 else
 	echo -e "\n:: Downloading Paper Info Please wait ::"
-	# Use the ieeexplore gateway API to get paper info
-	# See API on: http://ieeexplore.ieee.org/gateway/
-	wget -q "http://ieeexplore.ieee.org/gateway/ipsSearch.jsp?an=$1" -O /tmp/description.xml
+	download_paper $1 /tmp
 
 	# Get some data from description file
-	title="`get_value /tmp/description.xml 'title'`"
-	year="`get_value /tmp/description.xml 'py'`"
-	authors="`get_value /tmp/description.xml 'authors'`"
-	echo -e "\n:: The folowing paper will be downloaded ::"
-	echo -e "\t TITLE: $title"
-	echo -e "\t AUTHORS: $authors"
-	echo -e "\t YEAR: $year\n"
+	title=$(get_paper_title $1)
+	authors=$(get_paper_author $1)
+	year=$(get_paper_year $1)
+
+	show_result "$title" "$authors" "$year"
 
 	T="`echo $title | tr ' ' '-'`"; # Change spaces to -
-	A="`echo $authors | cut -d';' -f1 | tr ' ' '-'`" # Get just the first author
-	fileName="`echo $A\_$year\_$T`.pdf" 
+	A="`echo $authors  | tr ' ' '-'`" # Get just the first author
+	fileName="`echo $A\_$year\_$T`.pdf"
 
-	# Download paper using the folowing tweak:
-	# http://techqe.blogspot.com.br/2009/09/quick-download-ieee-paper.html
-	wget --progress=bar "http://ieeexplore.ieee.org/stampPDF/getPDF.jsp?tp=&isnumber=&arnumber=$1" -O ./$fileName
-
-	echo -e "\n:: The folowing paper have been downloaded ::"
-	echo -e "\t $fileName\n"
+	echo "Creating: $fileName"
+	cp /tmp/$1.pdf $fileName
 fi
 
